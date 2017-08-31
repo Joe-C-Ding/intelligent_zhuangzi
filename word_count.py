@@ -9,14 +9,33 @@ rslt_txt = r'result/word_count.txt'
 token = {}
 # count total characters
 chars = 0
+# how long that a string should be consider as a word
+wlen = 4
 
 
 def count(token, line):
-    for char in line:
-        try:
-            token[char] += 1
-        except KeyError:
-            token[char] = 1
+    length = len(line)
+    for long in range(1, wlen+1):
+        for i in range(length - long + 1):
+            word = line[i:i+long]
+            if word not in token:
+                token[word] = 1
+            else:
+                token[word] += 1
+
+
+def filter_word(token, key):
+    if key not in token:
+        return
+
+    value = token[key]
+    length = len(key)
+    for long in range(1, length):
+        for i in range(length - long + 1):
+            word = key[i:i+long]
+            if word in token and token[word] <= value:
+                token.pop(word)
+
 
 if __name__ == '__main__':
     start = clock()
@@ -35,9 +54,20 @@ if __name__ == '__main__':
             chars += len(line)
             count(token, line)
 
-    # don't count punctuation
-    for c in " ，。？！、：；‘’“”{}《》":
-        token.pop(c, 0)
+    # don't count punctuation or words appear only once or two
+    punctuation = set(" ，。？！、：；‘’“”{}《》")
+    # need to extract all keys now, cause token will change size during loop
+    keys = list(token.keys())
+    for k in keys:
+        if punctuation & set(k):
+            token.pop(k)
+        elif len(k) > 1 and token[k] <= 2:
+            token.pop(k)
+
+    # `AB` is a part of `ABC`, so if the count of former is no more that of latter, remove the former
+    ks = {k for k in token.keys() if len(k) > 1}
+    for k in ks:
+        filter_word(token, k)
 
     # calc frequency and sort the result
     result = [(item[0], item[1], item[1]/chars) for item in token.items()]
@@ -48,7 +78,6 @@ if __name__ == '__main__':
         for r in result:
             file.write("\t{r[0]}\t{r[1]:4d}\t{r[2]:.6e}\n".format(r=r))
 
-    print("species {}; counts: {}".format(len(token), chars))
     pprint(result[0:10])
 
     print("elapsed {}s".format(clock() - start))
